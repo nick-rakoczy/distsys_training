@@ -7,6 +7,14 @@ defmodule PingPongTest do
     Producer,
   }
 
+  setup_all do
+    :ok = LocalCluster.start()
+  end
+
+  test "nodes connect correctly" do
+
+  end
+
   test "consumers can subscribe to a producer" do
     producer = self()
     consumer = Consumer.start(producer)
