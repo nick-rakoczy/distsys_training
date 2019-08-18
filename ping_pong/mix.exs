@@ -30,7 +30,7 @@ defmodule PingPong.MixProject do
 
   def aliases do
     [
-      test: ["test --seed 0 --trace --max-failures 1"]
+      test: ["test --no-start --seed 0 --trace --max-failures 1"]
     ]
   end
 end

@@ -5,6 +5,8 @@ defmodule PingPong.Application do
 
   def start(_type, _args) do
     children = [
+      PingPong.Producer,
+      PingPong.Consumer,
       PingPong.NodeMonitor,
     ]
 
