@@ -17,14 +17,14 @@ defmodule PingPong.Producer do
   end
 
   def init(_args) do
-    {:ok, %{}}
+    {:ok, %{refs: %{}, count: 0}}
   end
 
   def handle_call(:send_ping, _from, data) do
     # TODO - Send a ping to all consumer processes
     GenServer.abcast(PingPong.Consumer, :ping)
 
-    {:reply, :ok, data}
+    {:reply, :ok, update_in(data, [:count], & &1+1)}
   end
 
   def handle_call(:get_counts, _from, data) do
@@ -35,4 +35,17 @@ defmodule PingPong.Producer do
 
     {:reply, map, data}
   end
+
+  def handle_call(:hiya, {pid, _}, data) do
+    # TODO - Monitor consumers
+    ref = Process.monitor(pid)
+
+    {:reply, {:ok, data.count}, put_in(data, [:refs, ref], pid)}
+  end
+
+  def handle_info(msg, data) do
+    IO.inspect(msg, label: "Received info message")
+    {:noreply, data}
+  end
 end
+

@@ -4,17 +4,20 @@ defmodule PingPong.Consumer do
   """
   use GenServer
 
+  alias PingPong.Producer
+
   @initial %{count: 0}
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  def ping_count(server) do
+  def ping_count(server \\ __MODULE__) do
     GenServer.call(server, :get_pings)
   end
 
   def init(_args) do
+    Process.send_after(self(), :checkin, 200)
     {:ok, @initial}
   end
 
@@ -33,5 +36,22 @@ defmodule PingPong.Consumer do
 
   def handle_cast(:ping, data) do
     {:noreply, %{data | count: data.count + 1}}
+  end
+
+  def handle_info(:checkin, data) do
+    GenServer.multi_call(Producer, :hiya)
+
+    {:noreply, data}
+  end
+
+  def handle_info(msg, data) do
+    case msg do
+      {:nodeup, node} ->
+        Process.send_after(self(), {:checkin, node}, 200)
+        {:noreply, data}
+
+      _ ->
+        {:noreply, data}
+    end
   end
 end
