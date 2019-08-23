@@ -4,6 +4,8 @@ defmodule PingPong.Producer do
   """
   use GenServer
 
+  @initial %{current: 0}
+
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
@@ -17,14 +19,16 @@ defmodule PingPong.Producer do
   end
 
   def init(_args) do
-    {:ok, %{refs: %{}, count: 0}}
+    :net_kernel.monitor_nodes(true)
+    {:ok, @initial}
   end
 
   def handle_call(:send_ping, _from, data) do
     # TODO - Send a ping to all consumer processes
-    GenServer.abcast(PingPong.Consumer, :ping)
+    ping = {:ping, data.current+1, Node.self()}
+    GenServer.abcast(PingPong.Consumer, ping)
 
-    {:reply, :ok, update_in(data, [:count], & &1+1)}
+    {:reply, :ok, %{data | current: data.current+1}}
   end
 
   def handle_call(:get_counts, _from, data) do
@@ -36,15 +40,23 @@ defmodule PingPong.Producer do
     {:reply, map, data}
   end
 
-  def handle_call(:hiya, {pid, _}, data) do
-    # TODO - Monitor consumers
-    ref = Process.monitor(pid)
+  def handle_call(:flush, _, _) do
+    {:reply, :ok, @initial}
+  end
 
-    {:reply, {:ok, data.count}, put_in(data, [:refs, ref], pid)}
+  def handle_cast({:hiya, pid}, data) do
+    IO.inspect(data, label: "Hiya")
+    GenServer.cast(pid, {:ping, data.current, Node.self()})
+
+    {:noreply, data}
+  end
+
+  def handle_info({:nodeup, n}, data) do
+    GenServer.cast({PingPong.Consumer, n}, {:ping, n, Node.self()})
+    {:noreply, data}
   end
 
   def handle_info(msg, data) do
-    IO.inspect(msg, label: "Received info message")
     {:noreply, data}
   end
 end

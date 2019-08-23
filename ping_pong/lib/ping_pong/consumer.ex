@@ -6,7 +6,7 @@ defmodule PingPong.Consumer do
 
   alias PingPong.Producer
 
-  @initial %{count: 0}
+  @initial %{counts: %{}}
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
@@ -16,13 +16,31 @@ defmodule PingPong.Consumer do
     GenServer.call(server, :get_pings)
   end
 
+  def total_pings(server) do
+    GenServer.call(server, :total_pings)
+  end
+
+  def count_for_node(server \\ __MODULE__, node) do
+    counts = GenServer.call(server, :get_pings)
+    counts[node]
+  end
+
   def init(_args) do
-    Process.send_after(self(), :checkin, 200)
+    Process.send_after(self(), :catch_up, 400)
     {:ok, @initial}
   end
 
   def handle_call(:get_pings, _from, data) do
-    {:reply, data.count, data}
+    {:reply, data.counts, data}
+  end
+
+  def handle_call(:total_pings, _from, data) do
+    ping_count =
+      data.counts
+      |> Enum.map(fn {_, count} -> count end)
+      |> Enum.sum()
+
+    {:reply, ping_count, data}
   end
 
   # We need these for testing. Ignore the warning and do not remove :)
@@ -31,23 +49,17 @@ defmodule PingPong.Consumer do
   end
   def handle_call(:crash, _from, data) do
     count = 42/0
-    {:reply, :ok, %{data | count: count}}
+    {:reply, :ok, @initial}
   end
 
-  def handle_cast(:ping, data) do
-    {:noreply, %{data | count: data.count + 1}}
-  end
-
-  def handle_info(:checkin, data) do
-    GenServer.multi_call(Producer, :hiya)
-
-    {:noreply, data}
+  def handle_cast({:ping, index, node}, data) do
+    {:noreply, put_in(data, [:counts, node], index)}
   end
 
   def handle_info(msg, data) do
     case msg do
-      {:nodeup, node} ->
-        Process.send_after(self(), {:checkin, node}, 200)
+      :catch_up ->
+        GenServer.abcast(Producer, {:hiya, self()})
         {:noreply, data}
 
       _ ->
