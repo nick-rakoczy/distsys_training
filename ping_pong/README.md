@@ -32,9 +32,16 @@ If our consumer crashes our states will get out of sync. In this exercise your j
 
 We could have chosen to solve this problem with monitors. But monitors have an inherent race condition where the producer could cast to a consumer that isn't currently started yet. Using this demand driven approach helps us to eliminate that race condition and is generally more reliable.
 
+## Problem 4
+
+In our last exercise we're going to see how things fail when network partitions occur. In order to create partitions between nodes we're using a tool called Schism. By calling `Schism.partition/1` we can cause a partition between nodes.
+When we want to heal the partition we can call `Schism.heal/1`.
+
+After a node is split from the network - or if a new node joins the cluster - we need to catch them up on our latest status. In order to accomplish we need our producer to monitor node events. When the producer sees a new node join the cluster it should send a ping to the consumer with its current ping count.
+
 ## Additional exercises
 
-* Try spawning a few thousand consumers all monitoring a single producer. What
-happens when you disconnect the node now?
-* What would happen if the producer crashes while the network was partitioned?
-Are there ways to make our algorithm more robust?
+* In these exercises we only tested independent failures. What would happen if a consumer crashed during a partition? Would we be able to recover from this?
+* Our Consumer's manage their own state. Which means if they crash this state is lost. Is there a way to pull apart the updating of the state and the storage of the state so we don't have to worry about crashes?
+* We didn't test producer crashes. If we wanted to ensure that we didn't lose any data how could we protect ourselves against a producer crashing? What would happen if the producer crashed during a netsplit?
+* Currently if anyone queries the consumer during a partition we have a high probability of returning incorrect data. If we wanted to always return the "correct" data what tradeoffs would we need to make?
