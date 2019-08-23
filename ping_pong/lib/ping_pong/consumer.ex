@@ -12,10 +12,6 @@ defmodule PingPong.Consumer do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  def ping_count(server \\ __MODULE__) do
-    GenServer.call(server, :get_pings)
-  end
-
   def total_pings(server) do
     GenServer.call(server, :total_pings)
   end
@@ -47,8 +43,9 @@ defmodule PingPong.Consumer do
   def handle_call(:flush, _, _) do
     {:reply, :ok, @initial}
   end
-  def handle_call(:crash, _from, data) do
-    count = 42/0
+
+  def handle_call(:crash, _from, _data) do
+    _count = 42/0
     {:reply, :ok, @initial}
   end
 

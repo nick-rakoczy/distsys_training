@@ -4,18 +4,20 @@ defmodule PingPong.Producer do
   """
   use GenServer
 
+  alias PingPong.Consumer
+
   @initial %{current: 0}
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  def send_ping do
-    GenServer.call(__MODULE__, :send_ping)
+  def send_ping(server \\ __MODULE__) do
+    GenServer.call(server, :send_ping)
   end
 
-  def get_counts do
-    GenServer.call(__MODULE__, :get_counts)
+  def get_counts(server \\ __MODULE__) do
+    GenServer.call(server, :get_counts)
   end
 
   def init(_args) do
@@ -26,7 +28,7 @@ defmodule PingPong.Producer do
   def handle_call(:send_ping, _from, data) do
     # TODO - Send a ping to all consumer processes
     ping = {:ping, data.current+1, Node.self()}
-    GenServer.abcast(PingPong.Consumer, ping)
+    GenServer.abcast(Consumer, ping)
 
     {:reply, :ok, %{data | current: data.current+1}}
   end
@@ -34,7 +36,7 @@ defmodule PingPong.Producer do
   def handle_call(:get_counts, _from, data) do
     # TODO - Get the count from each consumer
     # map = %{}
-    {replies, _bad_nodes} = GenServer.multi_call(PingPong.Consumer, :get_pings)
+    {replies, _bad_nodes} = GenServer.multi_call(Consumer, :total_pings)
     map = Enum.into(replies, %{})
 
     {:reply, map, data}
@@ -45,9 +47,7 @@ defmodule PingPong.Producer do
   end
 
   def handle_cast({:hiya, pid}, data) do
-    IO.inspect(data, label: "Hiya")
     GenServer.cast(pid, {:ping, data.current, Node.self()})
-
     {:noreply, data}
   end
 
@@ -56,7 +56,7 @@ defmodule PingPong.Producer do
     {:noreply, data}
   end
 
-  def handle_info(msg, data) do
+  def handle_info(_msg, data) do
     {:noreply, data}
   end
 end

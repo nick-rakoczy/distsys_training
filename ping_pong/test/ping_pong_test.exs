@@ -2,7 +2,6 @@ defmodule PingPongTest do
   use ExUnit.Case
 
   alias PingPong.{
-    NodeMonitor,
     Consumer,
     Producer,
   }
@@ -18,16 +17,21 @@ defmodule PingPongTest do
     GenServer.multi_call(Consumer, :flush)
     GenServer.multi_call(Producer, :flush)
 
+    on_exit fn ->
+      LocalCluster.stop_nodes(nodes)
+    end
+
     {:ok, nodes: nodes}
   end
 
   test "producer sends pings to each connected nodes consumer", %{nodes: nodes} do
+    [n1, n2] = nodes
     assert :ok == Producer.send_ping()
-    assert :ok == Producer.send_ping()
-    assert :ok == Producer.send_ping()
+    assert :ok == Producer.send_ping({Producer, n2})
+    assert :ok == Producer.send_ping({Producer, n1})
 
     for n <- nodes do
-      assert Consumer.ping_count({Consumer, n}) == %{Node.self() => 3}
+      assert Consumer.total_pings({Consumer, n}) == 3
     end
   end
 
@@ -35,19 +39,20 @@ defmodule PingPongTest do
     [n1, n2] = nodes
 
     assert :ok = Producer.send_ping()
-    assert :ok = Producer.send_ping()
+    assert :ok = Producer.send_ping({Producer, n1})
+    assert :ok = Producer.send_ping({Producer, n2})
 
-    # eventually(fn ->
-    #   assert Producer.get_counts() == %{
-    #     n1 => 2,
-    #     n2 => 2,
-    #     Node.self() => 2,
-    #   }
-    # end)
+    eventually(fn ->
+      assert Producer.get_counts() == %{
+        n1 => 3,
+        n2 => 3,
+        Node.self() => 3,
+      }
+    end)
   end
 
   test "producer can catch up crashed consumers", %{nodes: nodes} do
-    [n1, n2] = nodes
+    [n1, _n2] = nodes
 
     assert :ok = Producer.send_ping()
     assert :ok = Producer.send_ping()
@@ -63,12 +68,9 @@ defmodule PingPongTest do
       GenServer.call({Consumer, n1}, :crash)
     end)
 
-    # Send a final ping
-    assert :ok = Producer.send_ping()
-
     for n <- nodes do
       eventually(fn ->
-        assert Consumer.count_for_node({Consumer, n}, Node.self()) == 3
+        assert Consumer.count_for_node({Consumer, n}, Node.self()) == 2
       end)
     end
   end
@@ -115,7 +117,7 @@ defmodule PingPongTest do
         eventually(f, retries + 1)
       end
   catch
-    exit, term ->
+    _exit, _term ->
       :timer.sleep(500)
       eventually(f, retries + 1)
   end

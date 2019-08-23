@@ -7,7 +7,6 @@ defmodule PingPong.Application do
     children = [
       PingPong.Producer,
       PingPong.Consumer,
-      PingPong.NodeMonitor,
     ]
 
     opts = [
