@@ -25,6 +25,7 @@ defmodule PingPong.MixProject do
     [
       {:local_cluster, "~> 1.0", only: [:dev, :test]},
       {:schism, "~> 1.0", only: [:dev, :test]},
+      {:observer_cli, "~> 1.5"}
     ]
   end
 
